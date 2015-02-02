@@ -468,8 +468,8 @@
                     var camelizedName = this.camelize(attributeName);
 
                     camelizedName = this.deserializeMappings[attributeName] ||
-                        this.deserializeMappings[camelizedName] ||
-                        camelizedName;
+                    this.deserializeMappings[camelizedName] ||
+                    camelizedName;
 
                     if (this.isExcludedFromDeserialization(attributeName) || this.isExcludedFromDeserialization(camelizedName)) {
                         return undefined;
@@ -517,7 +517,7 @@
                  * @param data The data to prepare
                  * @returns {*} A new object or array that is ready for JSON serialization
                  */
-                Serializer.prototype.deserializeData = function (data, Resource) {
+                Serializer.prototype.serializeValue = function (data) {
                     var result = data,
                         self = this;
 
@@ -525,7 +525,7 @@
                         result = [];
 
                         angular.forEach(data, function (value) {
-                            result.push(self.deserializeData(value, Resource));
+                            result.push(self.serializeValue(value));
                         });
                     } else if (angular.isObject(data)) {
                         if (angular.isDate(data)) {
@@ -533,26 +533,15 @@
                         }
                         result = {};
 
-                        if (Resource) {
-                            result = new Resource.config.resourceConstructor();
-                        }
-
-                        this.deserializeObject(result, data);
-
+                        angular.forEach(data, function (value, key) {
+                            // if the value is a function then it can't be serialized to JSON so we'll just skip it
+                            if (!angular.isFunction(value)) {
+                                self.serializeAttribute(result, key, value);
+                            }
+                        });
                     }
 
                     return result;
-                };
-
-                Serializer.prototype.deserializeObject = function (result, data) {
-                    //console.log(data);
-                    //console.log(Resource);
-
-                    var $this = this;
-                    angular.forEach(data, function (value, key) {
-                        $this.deserializeAttribute(result, key, value);
-                    });
-                    return data
                 };
 
                 /**
@@ -623,20 +612,30 @@
                         if (angular.isDate(data)) {
                             return data;
                         }
-
                         result = {};
 
                         if (Resource) {
                             result = new Resource.config.resourceConstructor();
                         }
 
-                        angular.forEach(data, function (value, key) {
-                            self.deserializeAttribute(result, key, value);
-                        });
+                        this.deserializeObject(result, data);
+
                     }
 
                     return result;
                 };
+
+                Serializer.prototype.deserializeObject = function (result, data) {
+                    //console.log(data);
+                    //console.log(Resource);
+
+                    var tthis = this;
+                    angular.forEach(data, function (value, key) {
+                        tthis.deserializeAttribute(result, key, value);
+                    });
+                    return data;
+                };
+
 
                 /**
                  * Transforms an attribute and its value and stores it on the parent data object.  The attribute will be
@@ -712,7 +711,6 @@
         }];
     });
 }());
-
 (function (undefined) {
     angular.module('rails').factory('railsRootWrapper', function () {
         return {
